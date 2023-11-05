@@ -176,3 +176,68 @@ if ( defined( 'JETPACK__VERSION' ) ) {
 	require get_template_directory() . '/inc/jetpack.php';
 }
 
+function import_btn(){
+	?>
+	<button class="import-data">Import</button>
+	<script>
+		jQuery(document).ready(function($){
+			$('.import-data').click(function(){
+				$.ajax({
+					type:'post',
+					url:"<?= admin_url( 'admin-ajax.php' ) ?>",
+					data:{action:"import_posts_from_json"}
+
+				}).done(function(data){
+					console.log(data)
+				})
+			})
+		})
+	</script>
+	<?php
+}
+add_action('wp_footer','import_btn');
+
+function import_posts_from_json() {
+    // Replace this with the URL or file path to your JSON data.
+    $json_file_path = get_template_directory() . '/posts.json';
+	if (file_exists($json_file_path)) {
+        $json_data = file_get_contents($json_file_path);
+        // Parse the JSON data.
+        $dataall = json_decode($json_data);
+		$data = array_slice($dataall,535);
+		$post_count = 0;
+        if ($data) {
+            foreach ($data as $item) {
+                $post_data = array(
+                    'post_title' => $item->post_title,
+                    'post_content' => $item->post_content,
+                    'post_status' => 'publish',
+                    'post_type' => 'celebrity',
+                );
+                // Create a new post.
+                $post_id = wp_insert_post($post_data);
+
+                if (!is_wp_error($post_id)) {
+					$post_count++;
+                    foreach($item as $single => $val){
+						if($single !== 'post_title' && $single !== 'post_content'){
+							update_post_meta($post_id, $single, $val);
+                    		update_post_meta($post_id, $single, $val);
+						}
+					}
+                }
+            }
+
+			echo $post_count.' celebrities added !!';
+			wp_die();
+        } else {
+            echo 'Failed to parse JSON data.';
+			wp_die();
+        }
+    } else {
+        echo 'JSON file not found at ' . $json_file_path;
+		wp_die();
+    }
+}
+add_action('wp_ajax_import_posts_from_json','import_posts_from_json');
+add_action('wp_ajax_nopriv_import_posts_from_json','import_posts_from_json');
